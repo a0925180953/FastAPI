@@ -23,7 +23,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
     password = form_data.password
 
     # 🔥 測試帳密（先簡單）
-    if username != "test" or password != "test":
+    if username != "test" or password != "1234":
         raise HTTPException(status_code=400, detail="帳密錯誤")
 
     token = create_token({"sub": username})
