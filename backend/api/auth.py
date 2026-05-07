@@ -1,32 +1,41 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-from jose import jwt
-from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
+from backend.database import get_db
+from backend.models.models import User
+from backend.schemas import UserCreate
+from backend.utils.security import hash_password, verify_password, create_token
+from backend.config import SECRET_KEY
 
 router = APIRouter()
 
-SECRET_KEY = "secret"
-ALGORITHM = "HS256"
-EXPIRE_MINUTES = 60
+@router.post("/register")
+def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    # 檢查使用者是否已存在
+    existing_user = db.query(User).filter(User.username == user_data.username).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="這個帳號已經有人用了喔！換一個吧，野原新之助！")
 
-
-def create_token(data: dict):
-    payload = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=EXPIRE_MINUTES)
-    payload.update({"exp": expire})
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-
+    # 建立新使用者
+    new_user = User(
+        username=user_data.username,
+        password=hash_password(user_data.password)
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return {"message": "註冊成功！恭喜你，野原新之助！現在去登入吧！"}
 
 @router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    username = form_data.username
-    password = form_data.password
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # 查找使用者
+    user = db.query(User).filter(User.username == form_data.username).first()
+    
+    if not user or not verify_password(form_data.password, user.password):
+        raise HTTPException(status_code=400, detail="帳號或密碼錯誤，再試一次吧！")
 
-    # 🔥 測試帳密（先簡單）
-    if username != "test" or password != "1234":
-        raise HTTPException(status_code=400, detail="帳密錯誤")
-
-    token = create_token({"sub": username})
+    token = create_token({"sub": user.username})
 
     return {
         "access_token": token,

@@ -16,7 +16,20 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 3️⃣ login（保留你原本寫法）
+// 3️⃣ 處理回應（自動登出邏輯）
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Token 過期或無效
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
+
+// 4️⃣ login（保留你原本寫法）
 export const login = (username, password) => {
   const form = new URLSearchParams();
 
@@ -27,6 +40,13 @@ export const login = (username, password) => {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded"
     }
+  });
+};
+
+export const register = (username, password) => {
+  return api.post("/register", {
+    username: username,
+    password: password
   });
 };
 

@@ -1,12 +1,19 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { useRouter } from "vue-router";
 
+const router = useRouter();
 const ws = ref(null);
 const input = ref("");
 const messages = ref([]);
 const chatBox = ref(null);
 
 const token = localStorage.getItem("token");
+
+const handleLogout = () => {
+  localStorage.removeItem("token");
+  router.push("/login");
+};
 
 onMounted(() => {
   ws.value = new WebSocket(`ws://127.0.0.1:8000/ws?token=${token}`);
@@ -59,10 +66,21 @@ const scrollBottom = async () => {
   <div class="h-screen flex bg-[#313338] text-white">
 
     <!-- Sidebar -->
-    <div class="w-60 bg-[#2b2d31] p-3">
-      <h2 class="text-gray-300 font-bold mb-4">💬 Channels</h2>
-      <div class="text-gray-400 hover:text-white cursor-pointer"># general</div>
-      <div class="text-gray-400 hover:text-white cursor-pointer"># ai-chat</div>
+    <div class="w-60 bg-[#2b2d31] p-3 flex flex-col justify-between">
+      <div>
+        <h2 class="text-gray-300 font-bold mb-4">💬 Channels</h2>
+        <div class="text-gray-400 hover:text-white cursor-pointer mb-2"># general</div>
+        <div class="text-gray-400 hover:text-white cursor-pointer"># ai-chat</div>
+      </div>
+      
+      <!-- Logout Button -->
+      <button 
+        @click="handleLogout"
+        class="flex items-center gap-2 text-gray-400 hover:text-red-400 transition mb-4"
+      >
+        <span>🚪</span>
+        <span>登出</span>
+      </button>
     </div>
 
     <!-- Chat area -->

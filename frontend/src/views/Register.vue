@@ -1,32 +1,29 @@
 <script setup>
 import { ref } from "vue";
-import { login } from "../api/api";
+import { register } from "../api/api";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
 
 const username = ref("");
 const password = ref("");
-const errorMessage = ref("");
+const message = ref("");
+const isError = ref(false);
 
-const handleLogin = async () => {
-  if (!username.value || !password.value) {
-    errorMessage.value = "哎呀，帳號跟密碼都要填喔，野原新之助！";
-    return;
-  }
-  
+const handleRegister = async () => {
   try {
-    const res = await login(username.value, password.value);
+    const res = await register(username.value, password.value);
+    message.value = res.data.message;
+    isError.value = false;
     
-    // ✅ 1. 存 token
-    localStorage.setItem("token", res.data.access_token);
-
-    // ✅ 2. 跳頁
-    router.push("/chat");
-
+    // 註冊成功後，延遲一下下再跳轉到登入頁面
+    setTimeout(() => {
+      router.push("/login");
+    }, 2000);
+    
   } catch (err) {
-    console.error("登入失敗", err);
-    errorMessage.value = err.response?.data?.detail || "登入失敗，請檢查帳號密碼哦！";
+    isError.value = true;
+    message.value = err.response?.data?.detail || "註冊失敗，再試一次吧！";
   }
 };
 </script>
@@ -34,8 +31,7 @@ const handleLogin = async () => {
 <template>
   <div class="h-screen flex items-center justify-center bg-[#313338]">
     <div class="bg-[#2b2d31] p-8 rounded-lg shadow-xl w-96 text-white">
-      <h2 class="text-2xl font-bold mb-2 text-center">歡迎回來！</h2>
-      <p class="text-gray-400 text-center mb-6">我們好想你哦，野原新之助！</p>
+      <h2 class="text-2xl font-bold mb-6 text-center">建立帳號</h2>
       
       <div class="space-y-4">
         <div>
@@ -43,7 +39,7 @@ const handleLogin = async () => {
           <input 
             v-model="username" 
             class="w-full bg-[#1e1f22] p-2 rounded outline-none focus:ring-2 focus:ring-blue-500 transition"
-            placeholder="請輸入帳號" 
+            placeholder="你想叫什麼名字呢？" 
           />
         </div>
         
@@ -53,24 +49,24 @@ const handleLogin = async () => {
             v-model="password" 
             type="password"
             class="w-full bg-[#1e1f22] p-2 rounded outline-none focus:ring-2 focus:ring-blue-500 transition"
-            placeholder="請輸入密碼" 
+            placeholder="密碼要記住哦！" 
           />
         </div>
         
         <button 
-          @click="handleLogin"
+          @click="handleRegister"
           class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold transition duration-200"
         >
-          登入
+          註冊
         </button>
         
-        <p v-if="errorMessage" class="text-red-400 text-sm text-center mt-4">
-          {{ errorMessage }}
+        <p v-if="message" :class="isError ? 'text-red-400' : 'text-green-400'" class="text-sm text-center mt-4">
+          {{ message }}
         </p>
         
         <div class="text-sm text-gray-400 mt-4 text-center">
-          需要帳號嗎？
-          <router-link to="/register" class="text-blue-400 hover:underline">註冊一個吧</router-link>
+          已經有帳號了？
+          <router-link to="/login" class="text-blue-400 hover:underline">去登入</router-link>
         </div>
       </div>
     </div>
