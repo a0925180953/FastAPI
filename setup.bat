@@ -23,15 +23,20 @@ if not exist venv (
 echo 🐍 正在安裝後端套件 (requirements.txt)...
 call venv\Scripts\activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
 :: 4. 安裝前端套件
-if exist frontend (
-    echo 🎨 正在進入前端目錄安裝套件 (npm install)...
-    cd frontend
-    call npm install
-    cd ..
-)
+if exist frontend goto npm_install
+goto after_npm
+
+:npm_install
+echo 安裝 frontend 套件
+cd frontend
+cmd /c npm install
+cd ..
+:after_npm
+
+echo ✅ 前端套件已安裝完成。
 
 :: 5. 檢查 .env
 if not exist backend\.env (
