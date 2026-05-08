@@ -1,5 +1,6 @@
 # create_db.py
-from database import engine, Base
-from models import User
+from backend.database import engine, Base
+from backend.models.models import User, Message
 
 Base.metadata.create_all(bind=engine)
+print("Database tables created successfully!")
