@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { ref, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
@@ -7,6 +7,7 @@ const ws = ref(null);
 const input = ref("");
 const messages = ref([]);
 const chatBox = ref(null);
+const currentChannel = ref("general");
 
 const token = localStorage.getItem("token");
 
@@ -15,21 +16,59 @@ const handleLogout = () => {
   router.push("/login");
 };
 
-onMounted(() => {
-  ws.value = new WebSocket(`ws://127.0.0.1:8000/ws?token=${token}`);
+const fetchHistory = async (channel) => {
+  try {
+    const res = await fetch(`http://127.0.0.1:8000/history?channel=${channel}`);
+    const history = await res.json();
+    messages.value = history.map(m => ({
+      role: m.user === 'User' ? 'user' : 'ai',
+      text: m.message,
+      time: new Date(m.time).toLocaleTimeString(),
+    }));
+    scrollBottom();
+  } catch (e) {
+    console.error("Fetch history error:", e);
+  }
+};
+
+const connectWS = (channel) => {
+  if (ws.value) {
+    ws.value.close();
+  }
+
+  ws.value = new WebSocket(`ws://127.0.0.1:8000/ws/${channel}?token=${token}`);
 
   ws.value.onmessage = (event) => {
     const data = JSON.parse(event.data);
+    
+    // 如果是自己傳出的 User 訊息，其實在 sendMessage 已經 push 過了
+    // 這裡我們只處理來自 AI 或其他人的訊息 (在這個簡單實作中)
+    if (data.user === "AI" || (data.user === "User" && currentChannel.value === "general")) {
+       // 為了簡單起見，如果是 general 頻道，我們會收到廣播
+       // 但為了避免重複顯示自己的訊息，這裡加個簡單判斷
+       // (實際專案通常會用 message ID 或 sender ID)
+    }
 
     messages.value.push({
-      role: "ai",
+      role: data.user === "AI" ? "ai" : "user",
       text: data.message,
       time: new Date().toLocaleTimeString(),
     });
 
     scrollBottom();
   };
-});
+};
+
+const switchChannel = (channel) => {
+  currentChannel.value = channel;
+};
+
+// 監聽頻道切換
+watch(currentChannel, (newChannel) => {
+  messages.value = [];
+  fetchHistory(newChannel);
+  connectWS(newChannel);
+}, { immediate: true });
 
 onBeforeUnmount(() => {
   ws.value?.close();
@@ -40,17 +79,18 @@ const sendMessage = () => {
 
   const msg = input.value;
 
-  // user message
-  messages.value.push({
-    role: "user",
-    text: msg,
-    time: new Date().toLocaleTimeString(),
-  });
+  // 在 general 頻道，我們等 WS 廣播回來再顯示，避免重複
+  // 在 ai-chat 頻道，我們手動 push User 訊息
+  if (currentChannel.value === "ai-chat") {
+    messages.value.push({
+      role: "user",
+      text: msg,
+      time: new Date().toLocaleTimeString(),
+    });
+  }
 
   ws.value.send(JSON.stringify({ message: msg }));
-
   input.value = "";
-
   scrollBottom();
 };
 
@@ -69,14 +109,26 @@ const scrollBottom = async () => {
     <div class="w-60 bg-[#2b2d31] p-3 flex flex-col justify-between">
       <div>
         <h2 class="text-gray-300 font-bold mb-4">💬 Channels</h2>
-        <div class="text-gray-400 hover:text-white cursor-pointer mb-2"># general</div>
-        <div class="text-gray-400 hover:text-white cursor-pointer"># ai-chat</div>
+        <div 
+          @click="switchChannel('general')"
+          :class="currentChannel === 'general' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'"
+          class="cursor-pointer mb-2 p-2 rounded transition"
+        >
+          # general
+        </div>
+        <div 
+          @click="switchChannel('ai-chat')"
+          :class="currentChannel === 'ai-chat' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'"
+          class="cursor-pointer p-2 rounded transition"
+        >
+          # ai-chat
+        </div>
       </div>
       
       <!-- Logout Button -->
       <button 
         @click="handleLogout"
-        class="flex items-center gap-2 text-gray-400 hover:text-red-400 transition mb-4"
+        class="flex items-center gap-2 text-gray-400 hover:text-red-400 transition mb-4 p-2"
       >
         <span>🚪</span>
         <span>登出</span>
@@ -88,7 +140,7 @@ const scrollBottom = async () => {
 
       <!-- header -->
       <div class="h-12 border-b border-gray-700 flex items-center px-4">
-        <span class="font-bold"># ai-chat</span>
+        <span class="font-bold"># {{ currentChannel }}</span>
       </div>
 
       <!-- messages -->
@@ -126,12 +178,12 @@ const scrollBottom = async () => {
         <input
           v-model="input"
           @keyup.enter="sendMessage"
-          placeholder="輸入訊息..."
+          :placeholder="`在 #${currentChannel} 輸入訊息...`"
           class="flex-1 bg-[#1e1f22] p-2 rounded text-white outline-none"
         />
         <button
           @click="sendMessage"
-          class="bg-blue-600 px-4 rounded"
+          class="bg-blue-600 px-4 rounded hover:bg-blue-500 transition"
         >
           送出
         </button>
