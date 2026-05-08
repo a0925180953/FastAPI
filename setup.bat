@@ -39,12 +39,12 @@ cd ..
 echo ✅ 前端套件已安裝完成。
 
 :: 5. 檢查 .env
-if not exist backend\.env (
-    echo 📝 正在建立 backend\.env 範本...
-    echo OPENAI_API_KEY=your_key_here > backend\.env
-    echo GEMINI_API_KEY=your_key_here >> backend\.env
-    echo SECRET_KEY=your_secret_key_here >> backend\.env
-    echo ⚠️  別忘了去 backend\.env 填入你的 API Key 哦！
+if not exist .env (
+    echo 📝 正在建立 .env 範本...
+    echo OPENAI_API_KEY=your_key_here > .env
+    echo GEMINI_API_KEY=your_key_here >> .env
+    echo SECRET_KEY=your_secret_key_here >> .env
+    echo ⚠️  別忘了去 .env 填入你的 API Key 哦！
 )
 
 echo --------------------------------------------------
