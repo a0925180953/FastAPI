@@ -73,7 +73,7 @@ async def ask_ai_gpt(text):
         return response.choices[0].message.content
     except Exception as e:
         print(f"Error occurred while generating GPT response: {e}")
-        return "哈哈沒token,沒錢買token，可憐哪，快去買token吧！"
+        return "你賴東東不錯嘛~"
 
 async def ask_ai_gemini(text):
     try:
@@ -84,4 +84,4 @@ async def ask_ai_gemini(text):
         return response.text
     except Exception as e:
         print(f"Error occurred while generating Gemini response: {e}")
-        return "哈哈沒token,沒錢買token，可憐哪，快去買token吧！"
+        return "你賴東東不錯嘛~"
