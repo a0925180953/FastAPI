@@ -28,32 +28,61 @@ async def websocket_endpoint(websocket: WebSocket, channel: str):
         while True:
             data = await websocket.receive_text()
             print(f"收到 [{channel}]:", data)
-            msg = json.loads(data)
+            msg_data = json.loads(data)
             
+            msg_type = msg_data.get("type", "message")
+            
+            if msg_type == "typing":
+                # 廣播使用者正在輸入的狀態給其他人
+                typing_resp = {
+                    "type": "typing",
+                    "user": "User",  # 這裡建議以後可以帶入使用者名稱
+                    "is_typing": msg_data.get("is_typing", False)
+                }
+                await manager.broadcast(json.dumps(typing_resp), channel)
+                continue
+
             # 1. 儲存使用者訊息
-            user_msg = Message(channel=channel, sender="User", content=msg["message"])
+            message_text = msg_data.get("message", "")
+            user_msg = Message(channel=channel, sender="User", content=message_text)
             db.add(user_msg)
             db.commit()
 
-            # 只有在 ai-chat 頻道才觸發 AI 回覆
-            if channel == "ai-chat":
-                ai_reply = await ask_ai_gemini(msg["message"])
+            # 一般頻道廣播使用者訊息
+            if channel != "ai-chat":
+                response = {
+                    "type": "message",
+                    "user": "User",
+                    "message": message_text
+                }
+                await manager.broadcast(json.dumps(response), channel)
+            else:
+                # 只有在 ai-chat 頻道才觸發 AI 回覆
+                # 先發送 AI 正在輸入的狀態
+                await manager.broadcast(json.dumps({
+                    "type": "typing",
+                    "user": "AI",
+                    "is_typing": True
+                }), channel)
+
+                ai_reply = await ask_ai_gemini(message_text)
                 
                 # 3. 儲存 AI 訊息
                 ai_msg = Message(channel=channel, sender="AI", content=ai_reply)
                 db.add(ai_msg)
                 db.commit()
 
+                # 發送 AI 訊息並取消輸入狀態
+                await manager.broadcast(json.dumps({
+                    "type": "typing",
+                    "user": "AI",
+                    "is_typing": False
+                }), channel)
+
                 response = {
+                    "type": "message",
                     "user": "AI",
                     "message": ai_reply
-                }
-                await manager.broadcast(json.dumps(response), channel)
-            else:
-                # 一般頻道就只是廣播使用者訊息
-                response = {
-                    "user": "User",
-                    "message": msg["message"]
                 }
                 await manager.broadcast(json.dumps(response), channel)
 

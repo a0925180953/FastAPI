@@ -1,6 +1,20 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
 import { useRouter } from "vue-router";
+import MarkdownIt from "markdown-it";
+import hljs from "highlight.js";
+import "highlight.js/styles/github-dark.css";
+
+const md = new MarkdownIt({
+  highlight: function (str, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(str, { language: lang }).value;
+      } catch (__) {}
+    }
+    return ""; // use external default escaping
+  },
+});
 
 const router = useRouter();
 const ws = ref(null);
@@ -8,6 +22,8 @@ const input = ref("");
 const messages = ref([]);
 const chatBox = ref(null);
 const currentChannel = ref("general");
+const typingUsers = ref(new Set());
+let typingTimeout = null;
 
 const token = localStorage.getItem("token");
 
@@ -41,26 +57,36 @@ const connectWS = (channel) => {
   ws.value.onmessage = (event) => {
     const data = JSON.parse(event.data);
     
-    // 如果是自己傳出的 User 訊息，其實在 sendMessage 已經 push 過了
-    // 這裡我們只處理來自 AI 或其他人的訊息 (在這個簡單實作中)
-    if (data.user === "AI" || (data.user === "User" && currentChannel.value === "general")) {
-       // 為了簡單起見，如果是 general 頻道，我們會收到廣播
-       // 但為了避免重複顯示自己的訊息，這裡加個簡單判斷
-       // (實際專案通常會用 message ID 或 sender ID)
+    if (data.type === "typing") {
+      if (data.is_typing) {
+        typingUsers.value.add(data.user);
+      } else {
+        typingUsers.value.delete(data.user);
+      }
+      return;
     }
 
-    messages.value.push({
-      role: data.user === "AI" ? "ai" : "user",
-      text: data.message,
-      time: new Date().toLocaleTimeString(),
-    });
+    if (data.type === "message") {
+      // 避免重複顯示自己發送的訊息
+      if (data.user === "User" && currentChannel.value === "ai-chat") return;
+      if (data.user === "User" && currentChannel.value === "general") {
+          // 在 general 頻道，我們會收到廣播，所以不需要在 sendMessage 手動 push
+      }
 
-    scrollBottom();
+      messages.value.push({
+        role: data.user === "AI" ? "ai" : "user",
+        text: data.message,
+        time: new Date().toLocaleTimeString(),
+      });
+
+      scrollBottom();
+    }
   };
 };
 
 const switchChannel = (channel) => {
   currentChannel.value = channel;
+  typingUsers.value.clear();
 };
 
 // 監聽頻道切換
@@ -70,8 +96,23 @@ watch(currentChannel, (newChannel) => {
   connectWS(newChannel);
 }, { immediate: true });
 
+// 監聽輸入框以發送正在輸入狀態
+watch(input, (newVal) => {
+  if (ws.value && ws.value.readyState === WebSocket.OPEN) {
+    if (newVal.length > 0) {
+      ws.value.send(JSON.stringify({ type: "typing", is_typing: true }));
+      
+      if (typingTimeout) clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        ws.value.send(JSON.stringify({ type: "typing", is_typing: false }));
+      }, 2000);
+    }
+  }
+});
+
 onBeforeUnmount(() => {
   ws.value?.close();
+  if (typingTimeout) clearTimeout(typingTimeout);
 });
 
 const sendMessage = () => {
@@ -79,8 +120,6 @@ const sendMessage = () => {
 
   const msg = input.value;
 
-  // 在 general 頻道，我們等 WS 廣播回來再顯示，避免重複
-  // 在 ai-chat 頻道，我們手動 push User 訊息
   if (currentChannel.value === "ai-chat") {
     messages.value.push({
       role: "user",
@@ -89,7 +128,12 @@ const sendMessage = () => {
     });
   }
 
-  ws.value.send(JSON.stringify({ message: msg }));
+  ws.value.send(JSON.stringify({ type: "message", message: msg }));
+  
+  // 立即停止輸入狀態
+  if (typingTimeout) clearTimeout(typingTimeout);
+  ws.value.send(JSON.stringify({ type: "typing", is_typing: false }));
+
   input.value = "";
   scrollBottom();
 };
@@ -130,7 +174,7 @@ const scrollBottom = async () => {
         @click="handleLogout"
         class="flex items-center gap-2 text-gray-400 hover:text-red-400 transition mb-4 p-2"
       >
-        <span>🚪</span>
+        <span>門🚪</span>
         <span>登出</span>
       </button>
     </div>
@@ -156,13 +200,13 @@ const scrollBottom = async () => {
         >
 
           <div
-            class="max-w-[60%] px-3 py-2 rounded-lg"
+            class="max-w-[80%] px-3 py-2 rounded-lg"
             :class="msg.role === 'user'
               ? 'bg-blue-600'
               : 'bg-[#2b2d31]'"
           >
-            <div class="text-sm">
-              {{ msg.text }}
+            <!-- 使用 markdown 解析內容 -->
+            <div class="prose prose-invert prose-sm max-w-none" v-html="md.render(msg.text)">
             </div>
 
             <div class="text-[10px] text-gray-300 mt-1 text-right">
@@ -171,24 +215,52 @@ const scrollBottom = async () => {
           </div>
 
         </div>
+
+        <!-- Typing Indicator -->
+        <div v-if="typingUsers.size > 0" class="flex justify-start">
+          <div class="text-xs text-gray-400 italic bg-[#2b2d31] px-3 py-1 rounded-full animate-pulse">
+            {{ Array.from(typingUsers).join(', ') }} 正在輸入中...
+          </div>
+        </div>
       </div>
 
       <!-- input -->
-      <div class="p-3 border-t border-gray-700 flex gap-2">
-        <input
-          v-model="input"
-          @keyup.enter="sendMessage"
-          :placeholder="`在 #${currentChannel} 輸入訊息...`"
-          class="flex-1 bg-[#1e1f22] p-2 rounded text-white outline-none"
-        />
-        <button
-          @click="sendMessage"
-          class="bg-blue-600 px-4 rounded hover:bg-blue-500 transition"
-        >
-          送出
-        </button>
+      <div class="p-3 border-t border-gray-700 flex flex-col gap-2">
+        <div class="flex gap-2">
+          <input
+            v-model="input"
+            @keyup.enter="sendMessage"
+            :placeholder="`在 #${currentChannel} 輸入訊息...`"
+            class="flex-1 bg-[#1e1f22] p-2 rounded text-white outline-none"
+          />
+          <button
+            @click="sendMessage"
+            class="bg-blue-600 px-4 rounded hover:bg-blue-500 transition"
+          >
+            送出
+          </button>
+        </div>
       </div>
 
     </div>
   </div>
 </template>
+
+<style>
+/* 針對 Markdown 代碼區塊的額外樣式 */
+.prose pre {
+  background-color: #1e1f22 !important;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+.prose code {
+  color: #e2e8f0;
+  background-color: transparent;
+  padding: 0;
+}
+.prose p {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+</style>
