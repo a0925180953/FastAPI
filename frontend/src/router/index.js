@@ -2,12 +2,14 @@ import { createRouter, createWebHistory } from "vue-router";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
 import Chat from "../views/Chat.vue";
+import Settings from "../views/Settings.vue";
 
 const routes = [
   { path: "/", redirect: "/login" },
   { path: "/login", component: Login },
   { path: "/register", component: Register },
   { path: "/chat", component: Chat, meta: { requiresAuth: true } },
+  { path: "/settings", component: Settings, meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({

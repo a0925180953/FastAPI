@@ -1,13 +1,56 @@
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from jose import JWTError, jwt
 from backend.database import get_db
 from backend.models.models import User
-from backend.schemas import UserCreate
-from backend.utils.security import hash_password, verify_password, create_token
+from backend.schemas import UserCreate, UserUpdate, UserRead
+from backend.utils.security import hash_password, verify_password, create_token, ALGORITHM
 from backend.config import SECRET_KEY
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="找不到你的登入資訊，快去登入啦！",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = db.query(User).filter(User.username == username).first()
+    if user is None:
+        raise credentials_exception
+    return user
+
+@router.get("/me", response_model=UserRead)
+def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+@router.patch("/me", response_model=UserRead)
+def update_user_me(user_update: UserUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # 如果有要更新暱稱
+    if user_update.nickname is not None:
+        current_user.nickname = user_update.nickname
+    
+    # 如果有要更新大頭貼
+    if user_update.avatar_url is not None:
+        current_user.avatar_url = user_update.avatar_url
+    
+    # 如果有要更新密碼
+    if user_update.password is not None:
+        current_user.password = hash_password(user_update.password)
+        
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 @router.post("/register")
 def register(user_data: UserCreate, db: Session = Depends(get_db)):

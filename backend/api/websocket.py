@@ -1,42 +1,75 @@
 import json, os
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, status
 from sqlalchemy.orm import Session
 from openai import OpenAI
 from google import genai
+from jose import JWTError, jwt
 
 from backend.ws.manager import manager
-from backend.config import OPENAI_API_KEY, GEMINI_API_KEY
+from backend.config import OPENAI_API_KEY, GEMINI_API_KEY, SECRET_KEY
 from backend.database import SessionLocal, get_db
-from backend.models.models import Message
+from backend.models.models import Message, User
+from backend.utils.security import ALGORITHM
 
 router = APIRouter()
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
+DEFAULT_AVATAR = "https://api.dicebear.com/7.x/bottts/svg?seed=shinnosuke"
+
 @router.get("/history")
 async def get_chat_history(channel: str = "general", db: Session = Depends(get_db)):
-    messages = db.query(Message).filter(Message.channel == channel).order_by(Message.timestamp.asc()).all()
-    return [{"user": m.sender, "message": m.content, "time": m.timestamp} for m in messages]
+    # 使用 join 取得使用者資訊
+    messages = db.query(Message, User).outerjoin(User, Message.sender == User.username)\
+        .filter(Message.channel == channel)\
+        .order_by(Message.timestamp.asc()).all()
+    
+    result = []
+    for m, u in messages:
+        result.append({
+            "user": m.sender,
+            "nickname": u.nickname if u and u.nickname else m.sender,
+            "avatar": u.avatar_url if u and u.avatar_url else DEFAULT_AVATAR,
+            "message": m.content,
+            "time": m.timestamp
+        })
+    return result
 
 @router.websocket("/ws/{channel}")
-async def websocket_endpoint(websocket: WebSocket, channel: str):
-    await manager.connect(websocket, channel)
+async def websocket_endpoint(websocket: WebSocket, channel: str, token: str = Query(None)):
     db = SessionLocal()
+    current_user = None
+
+    # 驗證 Token 並取得使用者
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            username: str = payload.get("sub")
+            if username:
+                current_user = db.query(User).filter(User.username == username).first()
+        except JWTError:
+            pass
+
+    if not current_user:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    await manager.connect(websocket, channel)
 
     try:
         while True:
             data = await websocket.receive_text()
-            print(f"收到 [{channel}]:", data)
             msg_data = json.loads(data)
-            
             msg_type = msg_data.get("type", "message")
             
+            user_display_name = current_user.nickname or current_user.username
+            user_avatar = current_user.avatar_url or DEFAULT_AVATAR
+
             if msg_type == "typing":
-                # 廣播使用者正在輸入的狀態給其他人
                 typing_resp = {
                     "type": "typing",
-                    "user": "User",  # 這裡建議以後可以帶入使用者名稱
+                    "user": user_display_name,
                     "is_typing": msg_data.get("is_typing", False)
                 }
                 await manager.broadcast(json.dumps(typing_resp), channel)
@@ -44,47 +77,47 @@ async def websocket_endpoint(websocket: WebSocket, channel: str):
 
             # 1. 儲存使用者訊息
             message_text = msg_data.get("message", "")
-            user_msg = Message(channel=channel, sender="User", content=message_text)
+            user_msg = Message(channel=channel, sender=current_user.username, content=message_text)
             db.add(user_msg)
             db.commit()
 
-            # 一般頻道廣播使用者訊息
+            # 廣播使用者訊息
             if channel != "ai-chat":
                 response = {
                     "type": "message",
-                    "user": "User",
+                    "user": current_user.username,
+                    "nickname": user_display_name,
+                    "avatar": user_avatar,
                     "message": message_text
                 }
                 await manager.broadcast(json.dumps(response), channel)
             else:
-                # 只有在 ai-chat 頻道才觸發 AI 回覆
-                # 先發送 AI 正在輸入的狀態
+                # AI 聊天頻道
                 await manager.broadcast(json.dumps({
                     "type": "typing",
-                    "user": "AI",
+                    "user": "AI助理",
                     "is_typing": True
                 }), channel)
 
                 ai_reply = await ask_ai_gemini(message_text)
                 
-                # 3. 儲存 AI 訊息
                 ai_msg = Message(channel=channel, sender="AI", content=ai_reply)
                 db.add(ai_msg)
                 db.commit()
 
-                # 發送 AI 訊息並取消輸入狀態
                 await manager.broadcast(json.dumps({
                     "type": "typing",
-                    "user": "AI",
+                    "user": "AI助理",
                     "is_typing": False
                 }), channel)
 
-                response = {
+                await manager.broadcast(json.dumps({
                     "type": "message",
                     "user": "AI",
+                    "nickname": "AI助理",
+                    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=AI",
                     "message": ai_reply
-                }
-                await manager.broadcast(json.dumps(response), channel)
+                }), channel)
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, channel)

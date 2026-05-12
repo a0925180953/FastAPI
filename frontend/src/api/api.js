@@ -50,5 +50,13 @@ export const register = (username, password) => {
   });
 };
 
+export const getCurrentUser = () => {
+  return api.get("/me");
+};
+
+export const updateProfile = (data) => {
+  return api.patch("/me", data);
+};
+
 // 4️⃣ export api（給其他頁用）
 export default api;

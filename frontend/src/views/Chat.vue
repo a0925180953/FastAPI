@@ -37,7 +37,10 @@ const fetchHistory = async (channel) => {
     const res = await fetch(`http://127.0.0.1:8000/history?channel=${channel}`);
     const history = await res.json();
     messages.value = history.map(m => ({
-      role: m.user === 'User' ? 'user' : 'ai',
+      role: m.user === 'AI' ? 'ai' : 'user',
+      user: m.user,
+      nickname: m.nickname,
+      avatar: m.avatar,
       text: m.message,
       time: new Date(m.time).toLocaleTimeString(),
     }));
@@ -67,14 +70,14 @@ const connectWS = (channel) => {
     }
 
     if (data.type === "message") {
-      // 避免重複顯示自己發送的訊息
-      if (data.user === "User" && currentChannel.value === "ai-chat") return;
-      if (data.user === "User" && currentChannel.value === "general") {
-          // 在 general 頻道，我們會收到廣播，所以不需要在 sendMessage 手動 push
-      }
-
+      // 獲取目前使用者的 username (簡單起見從 localStorage 或解析 token，這裡假設我們知道自己是誰)
+      // 但其實只要判斷 data.user 即可
+      
       messages.value.push({
         role: data.user === "AI" ? "ai" : "user",
+        user: data.user,
+        nickname: data.nickname,
+        avatar: data.avatar,
         text: data.message,
         time: new Date().toLocaleTimeString(),
       });
@@ -120,14 +123,6 @@ const sendMessage = () => {
 
   const msg = input.value;
 
-  if (currentChannel.value === "ai-chat") {
-    messages.value.push({
-      role: "user",
-      text: msg,
-      time: new Date().toLocaleTimeString(),
-    });
-  }
-
   ws.value.send(JSON.stringify({ type: "message", message: msg }));
   
   // 立即停止輸入狀態
@@ -170,13 +165,22 @@ const scrollBottom = async () => {
       </div>
       
       <!-- Logout Button -->
-      <button 
-        @click="handleLogout"
-        class="flex items-center gap-2 text-gray-400 hover:text-red-400 transition mb-4 p-2"
-      >
-        <span>門🚪</span>
-        <span>登出</span>
-      </button>
+      <div class="flex flex-col gap-1">
+        <button 
+          @click="router.push('/settings')"
+          class="flex items-center gap-2 text-gray-400 hover:text-white transition p-2"
+        >
+          <span>⚙️</span>
+          <span>設定</span>
+        </button>
+        <button 
+          @click="handleLogout"
+          class="flex items-center gap-2 text-gray-400 hover:text-red-400 transition mb-4 p-2"
+        >
+          <span>🚪</span>
+          <span>登出</span>
+        </button>
+      </div>
     </div>
 
     <!-- Chat area -->
@@ -190,27 +194,35 @@ const scrollBottom = async () => {
       <!-- messages -->
       <div
         ref="chatBox"
-        class="flex-1 overflow-y-auto p-4 space-y-4"
+        class="flex-1 overflow-y-auto p-4 space-y-6"
       >
         <div
           v-for="(msg, i) in messages"
           :key="i"
-          class="flex"
-          :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
+          class="flex items-start gap-3"
         >
+          <!-- Avatar -->
+          <img 
+            :src="msg.avatar" 
+            alt="avatar" 
+            class="w-10 h-10 rounded-full object-cover bg-gray-600 mt-1"
+          />
 
-          <div
-            class="max-w-[80%] px-3 py-2 rounded-lg"
-            :class="msg.role === 'user'
-              ? 'bg-blue-600'
-              : 'bg-[#2b2d31]'"
-          >
-            <!-- 使用 markdown 解析內容 -->
-            <div class="prose prose-invert prose-sm max-w-none" v-html="md.render(msg.text)">
+          <div class="flex-1 min-w-0">
+            <!-- Header: Nickname + Time -->
+            <div class="flex items-baseline gap-2 mb-1">
+              <span class="font-bold text-blue-400">{{ msg.nickname }}</span>
+              <span class="text-[10px] text-gray-500">{{ msg.time }}</span>
             </div>
 
-            <div class="text-[10px] text-gray-300 mt-1 text-right">
-              {{ msg.time }}
+            <!-- Content bubble -->
+            <div
+              class="max-w-[90%] px-3 py-2 rounded-lg"
+              :class="msg.role === 'ai' ? 'bg-[#2b2d31]' : 'bg-[#383a40]'"
+            >
+              <!-- 使用 markdown 解析內容 -->
+              <div class="prose prose-invert prose-sm max-w-none" v-html="md.render(msg.text)">
+              </div>
             </div>
           </div>
 
