@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
 import { useRouter } from "vue-router";
+import { getCurrentUser } from "../api/api";
 import MarkdownIt from "markdown-it";
 import hljs from "highlight.js";
 import "highlight.js/styles/github-dark.css";
@@ -23,6 +24,7 @@ const messages = ref([]);
 const chatBox = ref(null);
 const currentChannel = ref("general");
 const typingUsers = ref(new Set());
+const currentUser = ref(null);
 let typingTimeout = null;
 
 const token = localStorage.getItem("token");
@@ -49,6 +51,15 @@ const fetchHistory = async (channel) => {
     console.error("Fetch history error:", e);
   }
 };
+
+onMounted(async () => {
+  try {
+    const res = await getCurrentUser();
+    currentUser.value = res.data;
+  } catch (err) {
+    console.error("無法獲取使用者資訊", err);
+  }
+});
 
 const connectWS = (channel) => {
   if (ws.value) {
@@ -194,12 +205,13 @@ const scrollBottom = async () => {
       <!-- messages -->
       <div
         ref="chatBox"
-        class="flex-1 overflow-y-auto p-4 space-y-6"
+        class="flex-1 overflow-y-auto p-4 space-y-1"
       >
         <div
           v-for="(msg, i) in messages"
           :key="i"
-          class="flex items-start gap-3"
+          class="flex items-start gap-3 p-2 rounded transition-colors"
+          :class="msg.user === currentUser?.username ? 'bg-[#393c43] border-l-4 border-[#f2c440] animate-gold-glow' : 'hover:bg-[#2e3035]'"
         >
           <!-- Avatar -->
           <img 
@@ -211,14 +223,18 @@ const scrollBottom = async () => {
           <div class="flex-1 min-w-0">
             <!-- Header: Nickname + Time -->
             <div class="flex items-baseline gap-2 mb-1">
-              <span class="font-bold text-blue-400">{{ msg.nickname }}</span>
+              <span 
+                class="font-bold"
+                :class="msg.user === currentUser?.username ? 'text-[#f2c440]' : (msg.role === 'ai' ? 'text-green-400' : 'text-blue-400')"
+              >
+                {{ msg.nickname }}
+              </span>
               <span class="text-[10px] text-gray-500">{{ msg.time }}</span>
             </div>
 
-            <!-- Content bubble -->
+            <!-- Content -->
             <div
-              class="max-w-[90%] px-3 py-2 rounded-lg"
-              :class="msg.role === 'ai' ? 'bg-[#2b2d31]' : 'bg-[#383a40]'"
+              class="max-w-none"
             >
               <!-- 使用 markdown 解析內容 -->
               <div class="prose prose-invert prose-sm max-w-none" v-html="md.render(msg.text)">
@@ -274,5 +290,25 @@ const scrollBottom = async () => {
 .prose p {
   margin-top: 0.5rem;
   margin-bottom: 0.5rem;
+}
+
+/* 黃金呼吸燈特效 */
+@keyframes gold-glow {
+  0% {
+    border-color: #f2c440;
+    box-shadow: inset 5px 0 10px -5px rgba(242, 196, 64, 0.4);
+  }
+  50% {
+    border-color: #ffffff;
+    box-shadow: inset 8px 0 20px -5px rgba(242, 196, 64, 0.7);
+  }
+  100% {
+    border-color: #f2c440;
+    box-shadow: inset 5px 0 10px -5px rgba(242, 196, 64, 0.4);
+  }
+}
+
+.animate-gold-glow {
+  animation: gold-glow 2s ease-in-out infinite;
 }
 </style>

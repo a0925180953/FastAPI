@@ -81,18 +81,18 @@ async def websocket_endpoint(websocket: WebSocket, channel: str, token: str = Qu
             db.add(user_msg)
             db.commit()
 
-            # 廣播使用者訊息
-            if channel != "ai-chat":
-                response = {
-                    "type": "message",
-                    "user": current_user.username,
-                    "nickname": user_display_name,
-                    "avatar": user_avatar,
-                    "message": message_text
-                }
-                await manager.broadcast(json.dumps(response), channel)
-            else:
-                # AI 聊天頻道
+            # 廣播使用者訊息 (現在所有頻道都要廣播，這樣發送者才看得到自己的暱稱和大頭貼)
+            user_response = {
+                "type": "message",
+                "user": current_user.username,
+                "nickname": user_display_name,
+                "avatar": user_avatar,
+                "message": message_text
+            }
+            await manager.broadcast(json.dumps(user_response), channel)
+
+            # 如果是 AI 聊天頻道，觸發 AI 回覆
+            if channel == "ai-chat":
                 await manager.broadcast(json.dumps({
                     "type": "typing",
                     "user": "AI助理",
