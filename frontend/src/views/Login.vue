@@ -68,9 +68,12 @@ const handleLogin = async () => {
           {{ errorMessage }}
         </p>
         
-        <div class="text-sm text-gray-400 mt-4 text-center">
-          需要帳號嗎？
-          <router-link to="/register" class="text-blue-400 hover:underline">註冊一個吧</router-link>
+        <div class="flex justify-between items-center mt-4 text-sm text-gray-400">
+          <router-link to="/forgot-password" class="text-blue-400 hover:underline">忘記密碼？</router-link>
+          <span>
+            需要帳號嗎？
+            <router-link to="/register" class="text-blue-400 hover:underline">註冊一個吧</router-link>
+          </span>
         </div>
       </div>
     </div>

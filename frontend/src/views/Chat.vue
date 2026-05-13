@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
 import { useRouter } from "vue-router";
-import { getCurrentUser } from "../api/api";
+import { getCurrentUser, getHistory } from "../api/api";
 import MarkdownIt from "markdown-it";
 import hljs from "highlight.js";
 import "highlight.js/styles/github-dark.css";
@@ -36,8 +36,8 @@ const handleLogout = () => {
 
 const fetchHistory = async (channel) => {
   try {
-    const res = await fetch(`http://127.0.0.1:8000/history?channel=${channel}`);
-    const history = await res.json();
+    const res = await getHistory(channel);
+    const history = res.data;
     messages.value = history.map(m => ({
       role: m.user === 'AI' ? 'ai' : 'user',
       user: m.user,
@@ -66,7 +66,8 @@ const connectWS = (channel) => {
     ws.value.close();
   }
 
-  ws.value = new WebSocket(`ws://127.0.0.1:8000/ws/${channel}?token=${token}`);
+  const wsBase = import.meta.env.VITE_WS_BASE_URL || "ws://127.0.0.1:8000";
+  ws.value = new WebSocket(`${wsBase}/ws/${channel}?token=${token}`);
 
   ws.value.onmessage = (event) => {
     const data = JSON.parse(event.data);

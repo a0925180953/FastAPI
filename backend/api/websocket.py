@@ -10,6 +10,7 @@ from backend.config import OPENAI_API_KEY, GEMINI_API_KEY, SECRET_KEY
 from backend.database import SessionLocal, get_db
 from backend.models.models import Message, User
 from backend.utils.security import ALGORITHM
+from backend.utils.logger import backend_logger
 
 router = APIRouter()
 
@@ -134,8 +135,8 @@ async def ask_ai_gpt(text):
         )
         return response.choices[0].message.content
     except Exception as e:
-        print(f"Error occurred while generating GPT response: {e}")
-        return "你賴東東不錯嘛~"
+        backend_logger.error(f"GPT API Error: {str(e)}")
+        return "AI目前沒額度可使用，請稍後再試，或者找動感超人幫忙喔！"
 
 async def ask_ai_gemini(text):
     try:
@@ -145,5 +146,5 @@ async def ask_ai_gemini(text):
         )
         return response.text
     except Exception as e:
-        print(f"Error occurred while generating Gemini response: {e}")
-        return "你賴東東不錯嘛~"
+        backend_logger.error(f"Gemini API Error: {str(e)}")
+        return "AI目前沒額度可使用，請稍後再試，或者找動感超人幫忙喔！"

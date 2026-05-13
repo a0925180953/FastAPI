@@ -3,6 +3,7 @@ from typing import Optional
 
 class UserCreate(BaseModel):
     username: str
+    email: Optional[str] = None
     password: str
     nickname: Optional[str] = None
     avatar_url: Optional[str] = None
@@ -15,6 +16,7 @@ class UserUpdate(BaseModel):
 class UserRead(BaseModel):
     id: int
     username: str
+    email: Optional[str] = None
     nickname: Optional[str] = None
     avatar_url: Optional[str] = None
 

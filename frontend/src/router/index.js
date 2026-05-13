@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
+import ForgotPassword from "../views/ForgotPassword.vue";
 import Chat from "../views/Chat.vue";
 import Settings from "../views/Settings.vue";
 
@@ -8,6 +9,7 @@ const routes = [
   { path: "/", redirect: "/login" },
   { path: "/login", component: Login },
   { path: "/register", component: Register },
+  { path: "/forgot-password", component: ForgotPassword },
   { path: "/chat", component: Chat, meta: { requiresAuth: true } },
   { path: "/settings", component: Settings, meta: { requiresAuth: true } },
 ];

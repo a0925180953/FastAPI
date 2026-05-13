@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
+from pydantic import BaseModel
 from backend.database import get_db
 from backend.models.models import User
 from backend.schemas import UserCreate, UserUpdate, UserRead
@@ -62,6 +63,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     # 建立新使用者
     new_user = User(
         username=user_data.username,
+        email=user_data.email,
         password=hash_password(user_data.password)
     )
     db.add(new_user)
@@ -84,3 +86,18 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         "access_token": token,
         "token_type": "bearer"
     }
+
+class PasswordReset(BaseModel):
+    username: str
+    email: str
+    new_password: str
+
+@router.post("/reset-password")
+def reset_password(data: PasswordReset, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == data.username, User.email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="找不到對應的帳號或 Email 喔！再檢查看看吧！")
+    
+    user.password = hash_password(data.new_password)
+    db.commit()
+    return {"message": "密碼重設成功！快去用新密碼登入吧！"}
