@@ -78,7 +78,7 @@ if __name__ == "__main__":
         "backend.main:app",  # 確保這裡的字串與你的目錄結構一致
         host="127.0.0.1", 
         port=8000, 
-        reload=False,
+        reload=True,
         log_config=None,      # 避免 Uvicorn 覆蓋你的 logger 設定
         timeout_graceful_shutdown=5
     )

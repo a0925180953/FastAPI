@@ -8,7 +8,6 @@ os.makedirs(log_dir, exist_ok=True)
 def setup_logger(name, log_file, level=logging.INFO):
     logger = logging.getLogger(name)
 
-    # 🔥 防止重複加 handler（關鍵）
     if logger.handlers:
         return logger
 
