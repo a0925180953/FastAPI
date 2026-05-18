@@ -25,6 +25,8 @@ jobs:
       - name: Run Pytest
         env:
           SECRET_KEY: "test_secret_key"
+          OPENAI_API_KEY: "sk-mock-key-for-testing"
+          GEMINI_API_KEY: "mock-gemini-key"
           PYTHONPATH: .
         run: |
           pytest backend/tests
