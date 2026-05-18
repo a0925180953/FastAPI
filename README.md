@@ -118,4 +118,31 @@ dev.bat
 - API 呼叫需帶上 JWT Token 進行驗證。
 
 ---
-*Powered by Nohara Shinnosuke & Gemini CLI.*
+
+## 🧪 測試與 CI/CD (Testing & CI/CD)
+
+本專案整合了自動化測試與 GitHub Actions 流程：
+
+### 1. 後端測試 (Pytest)
+使用 `pytest` 進行單元測試與整合測試。
+- **測試目錄**: `backend/tests/`
+- **執行測試**:
+  ```bash
+  $env:PYTHONPATH="."; venv\Scripts\pytest backend/tests
+  ```
+
+### 2. 前端測試 (Vitest)
+使用 `vitest` 進行元件與邏輯測試。
+- **測試目錄**: `frontend/src/__tests__/`
+- **執行測試**:
+  ```bash
+  cd frontend && npm run test
+  ```
+
+### 3. CI/CD 流程
+當程式碼推送到 `main` 或 `master` 分支，或發起 Pull Request 時，GitHub Actions 會自動執行：
+- **Backend-tests**: 安裝依賴並執行 `pytest`。
+- **Frontend-check**: 安裝依賴、執行 `vitest` 並嘗試 `npm run build` 確保建置正常。
+
+---
+
