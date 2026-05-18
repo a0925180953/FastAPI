@@ -7,7 +7,7 @@ import { logRemote } from "./api/api";
 const app = createApp(App);
 
 // 捕捉 Vue 元件錯誤
-app.config.errorHandler = (err: any, instance, info) => {
+app.config.errorHandler = (err: any) => {
   console.error("Vue Error:", err);
   logRemote("error", `[Vue] ${err.message}`, err.stack);
 };

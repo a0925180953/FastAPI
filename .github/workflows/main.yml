@@ -25,6 +25,7 @@ jobs:
       - name: Run Pytest
         env:
           SECRET_KEY: "test_secret_key"
+          PYTHONPATH: .
         run: |
           pytest backend/tests
 
