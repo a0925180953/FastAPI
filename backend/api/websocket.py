@@ -101,7 +101,7 @@ async def websocket_endpoint(websocket: WebSocket, channel: str, token: str = Qu
                 }), channel)
 
                 ai_reply = await ask_ai_gemini(message_text)
-                
+
                 ai_msg = Message(channel=channel, sender="AI", content=ai_reply)
                 db.add(ai_msg)
                 db.commit()
@@ -141,7 +141,7 @@ async def ask_ai_gpt(text):
 async def ask_ai_gemini(text):
     try:
         response = genai_client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=text
         )
         return response.text
