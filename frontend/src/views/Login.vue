@@ -11,7 +11,7 @@ const errorMessage = ref("");
 
 const handleLogin = async () => {
   if (!username.value || !password.value) {
-    errorMessage.value = "哎呀，帳號跟密碼都要填喔，野原新之助！";
+    errorMessage.value = "請填寫帳號與密碼。";
     return;
   }
   
@@ -26,7 +26,7 @@ const handleLogin = async () => {
 
   } catch (err) {
     console.error("登入失敗", err);
-    errorMessage.value = err.response?.data?.detail || "登入失敗，請檢查帳號密碼哦！";
+    errorMessage.value = err.response?.data?.detail || "登入失敗，請檢查您的帳號密碼。";
   }
 };
 </script>
@@ -35,7 +35,7 @@ const handleLogin = async () => {
   <div class="h-screen flex items-center justify-center bg-[#313338]">
     <div class="bg-[#2b2d31] p-8 rounded-lg shadow-xl w-96 text-white">
       <h2 class="text-2xl font-bold mb-2 text-center">歡迎回來！</h2>
-      <p class="text-gray-400 text-center mb-6">我們好想你哦，野原新之助！</p>
+      <p class="text-gray-400 text-center mb-6">很高興見到您，請登入以繼續。</p>
       
       <div class="space-y-4">
         <div>

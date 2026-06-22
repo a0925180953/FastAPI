@@ -14,7 +14,7 @@ const isError = ref(false);
 const handleReset = async () => {
   if (!username.value || !email.value || !newPassword.value) {
     isError.value = true;
-    message.value = "全部欄位都要填喔！";
+    message.value = "請填寫所有欄位。";
     return;
   }
 
@@ -29,7 +29,7 @@ const handleReset = async () => {
     
   } catch (err) {
     isError.value = true;
-    message.value = err.response?.data?.detail || "驗證失敗，再試一次吧！";
+    message.value = err.response?.data?.detail || "驗證失敗，請再試一次。";
   }
 };
 </script>
@@ -38,7 +38,7 @@ const handleReset = async () => {
   <div class="h-screen flex items-center justify-center bg-[#313338]">
     <div class="bg-[#2b2d31] p-8 rounded-lg shadow-xl w-96 text-white">
       <h2 class="text-2xl font-bold mb-2 text-center">找回密碼</h2>
-      <p class="text-gray-400 text-center mb-6">別擔心，野原新之助幫你找回來！</p>
+      <p class="text-gray-400 text-center mb-6">請輸入您的帳號與註冊 Email 以重設密碼。</p>
       
       <div class="space-y-4">
         <div>

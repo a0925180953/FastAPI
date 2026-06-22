@@ -6,7 +6,7 @@ def test_register(client):
         json={"username": "testuser", "email": "test@example.com", "password": "testpassword"}
     )
     assert response.status_code == 200
-    assert response.json()["message"] == "註冊成功！恭喜你，野原新之助！現在去登入吧！"
+    assert response.json()["message"] == "註冊成功！歡迎加入，請前往登入。"
 
 def test_login(client):
     # 先註冊
@@ -37,7 +37,7 @@ def test_login_wrong_password(client):
         data={"username": "testuser", "password": "wrongpassword"}
     )
     assert response.status_code == 400
-    assert response.json()["detail"] == "帳號或密碼錯誤，再試一次吧！"
+    assert response.json()["detail"] == "帳號或密碼錯誤，請再試一次。"
 
 def test_read_users_me(client):
     # 先註冊並登入

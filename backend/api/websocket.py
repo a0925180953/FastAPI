@@ -136,7 +136,7 @@ async def ask_ai_gpt(text):
         return response.choices[0].message.content
     except Exception as e:
         backend_logger.error(f"GPT API Error: {str(e)}")
-        return "AI目前沒額度可使用，請稍後再試，或者找動感超人幫忙喔！"
+        return "AI 目前額度不足，請稍後再試，或聯繫系統管理員。"
 
 async def ask_ai_gemini(text):
     try:
@@ -147,4 +147,4 @@ async def ask_ai_gemini(text):
         return response.text
     except Exception as e:
         backend_logger.error(f"Gemini API Error: {str(e)}")
-        return "AI目前沒額度可使用，請稍後再試，或者找動感超人幫忙喔！"
+        return "AI 目前額度不足，請稍後再試，或聯繫系統管理員。"

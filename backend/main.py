@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
 
     # 【啟動部分】
     print("📢 [DEBUG] Lifespan 啟動了！")
-    backend_logger.info("🚀 後端伺服器啟動成功！野原新之助，讓我們大幹一場吧！")
+    backend_logger.info("🚀 後端伺服器啟動成功！系統已就緒。")
     
     try:
         yield
@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
         # 【關閉部分】
         # 使用 print 測試是否真的有跑到這
         print("📢 [DEBUG] Lifespan 正在關閉...")
-        backend_logger.info("🛌 後端伺服器已安全關閉。辛苦了，野原新之助！")
+        backend_logger.info("🛌 後端伺服器已安全關閉。")
         
         # 手動強制沖刷日誌，而不是 shutdown
         for handler in backend_logger.handlers:
